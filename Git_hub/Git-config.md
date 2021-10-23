@@ -5,6 +5,7 @@ git config --global --edit
 [user]
 name = seuuser
 email = seuemail@hotmail.com
+password = tokenGerado
 [filter "lfs"]
 clean = git-lfs clean -- %f
 smudge = git-lfs smudge -- %f
