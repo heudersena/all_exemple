@@ -1,0 +1,15 @@
+echo 1 > /proc/sys/net/ipv4/ip_forward
+modprobe ip_tables
+modprobe iptable_nat
+iptables -t nat -A POSTROUTING -s 192.168.10.0/24 -o enp9s0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o enp9s0 -j MASQUERADE
+
+systemctl --type=service --state=running
+
+//https://www.cyberciti.biz/faq/how-to-list-all-iptables-rules-in-linux/
+//https://www.youtube.com/watch?v=DOQ3xKl9fkg&ab_channel=DanielBulh%C3%B5es
+// https://www.explorandoti.com.br/principais-comentos-do-iptables/
+// https://www.youtube.com/watch?v=bucAXSN2xTA&ab_channel=ProfessorPauloSoaresdaCosta
+iptables -t nat -L --line-numbers
+iptables -t nat -D POSTROUTING 25
+iptables -t nat -v -L POSTROUTING -n --line-number

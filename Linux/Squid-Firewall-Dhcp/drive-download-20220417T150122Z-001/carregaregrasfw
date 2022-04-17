@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# Placa de rede ligada a internet
+wan='eth1'
+
+# Placa de rede que liga com a 'rede interna' (local)
+lan='eth2'
+
+
+
+# --------- CARREGAR MODULOS-----------------
+modprobe ip_conntrack
+modprobe ip_conntrack_ftp
+modprobe ip_nat_ftp
+modprobe ip_tables
+modprobe ipt_LOG
+modprobe ipt_MARK
+modprobe ipt_MASQUERADE
+modprobe ipt_REDIRECT
+modprobe ipt_REJECT
+modprobe ipt_TCPMSS
+modprobe ipt_TOS
+modprobe ipt_limit
+modprobe ipt_mac
+modprobe ipt_mark
+modprobe ipt_multiport
+modprobe ipt_owner
+modprobe ipt_state
+modprobe ipt_tcpmss
+modprobe ipt_tos
+modprobe iptable_filter
+modprobe iptable_mangle
+modprobe iptable_nat
+modprobe tun
+
+
+
+
+# flush
+iptables -t nat -F POSTROUTING
+iptables -t nat -F PREROUTING
+iptables -t nat -F OUTPUT
+
+iptables -F
+iptables -X
+iptables -Z
+
+
+
+if [ "${1}" == '--stop' ] ; then
+
+	echo "Desligando o firewall................................ [ >> ]"
+
+	# --------- POLITICAS -----------------------
+	iptables -P INPUT ACCEPT
+	iptables -P FORWARD ACCEPT
+	iptables -P OUTPUT ACCEPT
+
+	# Desabilita o roteamento entre as interfaces
+	#--------------------------------------------
+	echo 0 > /proc/sys/net/ipv4/ip_forward
+
+
+	echo "Firewall DESATIVADO.................................. [ OK ]"
+
+else
+
+	echo "Iniciando o firewall................................. [ >> ]"
+
+	# --------- POLITICAS -----------------------
+	iptables -P INPUT DROP
+	iptables -P FORWARD DROP
+	iptables -P OUTPUT ACCEPT
+
+
+	#----------REGRAS ADICIONAIS DE SEGURANA ---------: 
+	iptables -A INPUT -m state --state INVALID -j DROP
+	iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
+	echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
+	echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
+	echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
+	echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+	echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+
+	# Habilita o roteamento entre as interfaces
+	#------------------------------------------
+	echo 1 > /proc/sys/net/ipv4/ip_forward
+
+
+	# Regra para compartilhar a Internet (NAT)
+	#-----------------------------------------
+	iptables -t nat -A POSTROUTING  -o $wan -j MASQUERADE
+
+
+	# Permitir resolução de DNS
+	iptables -A FORWARD  -i $lan -p udp --dport 53 -j ACCEPT
+
+
+	# garante que o firewall permitira pacotes de conexoes ja iniciadas:
+	#-------------------------------------------------------------------
+	iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+	iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+	iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+
+	# --------- LOOPBACK ------------------------
+	iptables -A INPUT -i lo -j ACCEPT
+
+
+
+	# Compartilhamento - Porta 80 >> Proxy 3129
+	#--------------------------------------------------
+	iptables -t nat -A PREROUTING \
+		-i $lan \
+		-p tcp \
+		--dport 80 \
+	-j REDIRECT --to-port 3129
+
+
+
+	# Permitir tudo com origem na rede local
+	#---------------------------------------
+	iptables -A INPUT    -i $lan -j ACCEPT
+	iptables -A FORWARD  -i $lan -j ACCEPT
+
+
+	# Liberando acesso por SSH em todas as interfaces
+	#------------------------------------------------
+	iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+
+
+	echo "Firewall Ativado..................................... [ OK ]"
+
+fi
