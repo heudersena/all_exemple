@@ -35,6 +35,7 @@ entrar = !git checkout
 
 # https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_free-2.02-win-setup.exe
 # Separar PDF => pdftk tim.pdf  burst output page_%02d.pdf
+# https://metring.com.br/como-remover-uma-branch-no-git
 
 # Entrar em uma brach existente
 exec git checkout nome-da-brach
@@ -51,6 +52,10 @@ exec git push --set-upstream origin copy
 # Listar todas as branch
 exec git branch -a     # remotas
 exec git branch --list # local
+
+# removendo branch LOCAL E REMOTA
+exec git branch -D nome-da-branch # local
+exec git push origin --delete nome-da-branch # remota
 
 # Merge de branches em um repositório local
 exec git checkout main
